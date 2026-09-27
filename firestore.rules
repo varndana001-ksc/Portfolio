@@ -1,0 +1,99 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Bootstrapped owner verification using user's verified runtime email
+    function isOwnerEmail() {
+      return isSignedIn() &&
+        request.auth.token.email == 'varndana.001@gmail.com' &&
+        request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isOwnerEmail() ||
+        (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // Validation blueprints
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll(['id', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'profileAvatarUrl', 'updatedAt', 'updatedBy']) &&
+        data.id is string && isValidId(data.id) &&
+        data.updatedAt is string && data.updatedAt.size() <= 100 &&
+        (!('profileAvatarUrl' in data) || (data.profileAvatarUrl is string && data.profileAvatarUrl.size() <= 1000000)) &&
+        (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128));
+    }
+
+    function isValidProjectLogo(data) {
+      return data.keys().hasAll(['projectId', 'logoUrl', 'updatedAt']) &&
+        data.keys().hasOnly(['projectId', 'logoUrl', 'updatedAt', 'updatedBy']) &&
+        data.projectId is string && isValidId(data.projectId) &&
+        data.logoUrl is string && data.logoUrl.size() <= 1000000 &&
+        data.updatedAt is string && data.updatedAt.size() <= 100 &&
+        (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128));
+    }
+
+    function isValidProfileStats(data) {
+      return data.keys().hasAll(['id', 'viewsCount', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'viewsCount', 'lastViewedAt', 'updatedAt']) &&
+        data.id is string && isValidId(data.id) &&
+        data.viewsCount is number && data.viewsCount >= 0 &&
+        data.updatedAt is string && data.updatedAt.size() <= 100 &&
+        (!('lastViewedAt' in data) || (data.lastViewedAt is string && data.lastViewedAt.size() <= 100));
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+        data.keys().hasOnly(['uid', 'email', 'role', 'createdAt']) &&
+        data.uid is string && isValidId(data.uid) &&
+        data.email is string && data.email.size() <= 200 &&
+        data.role in ['owner', 'admin'];
+    }
+
+    // Global site settings (profile photo visible to all, only owner can edit)
+    match /site_settings/{settingId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(settingId) && isAdmin() && isValidSiteSettings(request.resource.data);
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // Project brand logos (visible to all, only owner can edit)
+    match /project_logos/{projectId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(projectId) && isAdmin() && isValidProjectLogo(request.resource.data);
+      allow delete: if isValidId(projectId) && isAdmin();
+    }
+
+    // Live profile views & stats (public read, incrementable on view)
+    match /site_stats/{statId} {
+      allow get, list: if true;
+      allow create: if isValidId(statId) && isValidProfileStats(request.resource.data) && request.resource.data.viewsCount >= 1 && request.resource.data.viewsCount <= 10000;
+      allow update: if isValidId(statId) && isValidProfileStats(request.resource.data) &&
+        (isAdmin() || (request.resource.data.viewsCount >= resource.data.viewsCount && request.resource.data.viewsCount <= resource.data.viewsCount + 5));
+      allow delete: if isAdmin();
+    }
+
+    // Admins registry
+    match /admins/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || isOwnerEmail());
+      allow list: if isAdmin();
+      allow create, update: if isValidId(uid) && isOwnerEmail() && isValidAdmin(request.resource.data);
+      allow delete: if false;
+    }
+  }
+}

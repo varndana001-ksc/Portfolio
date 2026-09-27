@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global portfolio display settings including live profile picture",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "profileAvatarUrl": {
+          "type": "string",
+          "maxLength": 1000000
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "updatedBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "updatedAt"
+      ]
+    },
+    "ProjectLogo": {
+      "title": "ProjectLogo",
+      "description": "Custom project branding logo shown to all visitors",
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "logoUrl": {
+          "type": "string",
+          "maxLength": 1000000
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "updatedBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "projectId",
+        "logoUrl",
+        "updatedAt"
+      ]
+    },
+    "ProfileStats": {
+      "title": "ProfileStats",
+      "description": "Live view counts and visitor analytics for Dana's profile",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "viewsCount": {
+          "type": "number"
+        },
+        "lastViewedAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "viewsCount",
+        "updatedAt"
+      ]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Authorized site owner and administrator record",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["owner", "admin"]
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid",
+        "email",
+        "role"
+      ]
+    }
+  },
+  "firestore": {
+    "/site_settings/{settingId}": {
+      "schema": "SiteSettings",
+      "description": "Global portfolio display settings including live profile picture"
+    },
+    "/project_logos/{projectId}": {
+      "schema": "ProjectLogo",
+      "description": "Project brand logos visible to all visitors"
+    },
+    "/site_stats/{statId}": {
+      "schema": "ProfileStats",
+      "description": "Live profile view counters and visitor metrics"
+    },
+    "/admins/{uid}": {
+      "schema": "Admin",
+      "description": "Site administrators and owner records"
+    }
+  }
+}
